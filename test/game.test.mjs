@@ -50,3 +50,9 @@ test("a mixed camera lane retains its source mask index when detections reorder"
   const p=lanes([points(.75),points(.25)],2);
   assert.deepEqual(p.map(v=>v.index),[1,0]);assert.equal(avatars.length,8);
 });
+test("brief occlusion clears swipe history; sustained loss pauses until steady tracking returns",()=>{
+  const r=new Round(1),p=[person(.5)];
+  tick(r,p,76);r.update([null],.05);assert.equal(r.state,"play");assert.equal(r.previous[0],null);
+  tick(r,p,1);tick(r,[null],14);assert.equal(r.state,"paused");
+  tick(r,p,10);assert.equal(r.state,"paused");tick(r,p,4);assert.equal(r.state,"play");
+});

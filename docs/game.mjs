@@ -31,7 +31,7 @@ export class Round {
     this.count=count; this.random=random; this.state="calibrate"; this.score=0; this.remaining=120;this.level=1;this.hits=0;this.misses=0;this.speed='Classic';
     this.bags=Array.from({length:count},()=>[]);this.previous=Array(count).fill(null);this.elapsed=0;
     this.holds=Array(count).fill(0); this.zones=Array(count); this.targets=Array(count).fill(null);
-    this.countdown=3; this.recovery=0; this.effects=[];
+    this.countdown=3; this.recovery=0; this.lostFor=0; this.effects=[];
   }
   target(i) {
     const r=this.random,z=this.zones[i];
@@ -67,7 +67,17 @@ export class Round {
       return;
     }
     if(this.state==="done") return;
-    if(!all) {this.previous.fill(null);this.recovery=0;if(this.state==="countdown")this.countdown=3;else this.state="paused";return;}
+    if(!all){
+      this.previous.fill(null);
+      this.recovery=0;
+      this.lostFor+=dt;
+      if(this.lostFor>=.6){
+        if(this.state==="countdown")this.countdown=3;
+        else this.state="paused";
+      }
+      return;
+    }
+    this.lostFor=0;
     if(this.state==="countdown") {
       this.countdown-=dt;
       if(this.countdown<=0){this.state="play";this.targets=this.targets.map((_,i)=>this.target(i));}

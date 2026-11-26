@@ -1,6 +1,6 @@
-import {scenery,puppet,thumbnail} from "./art.mjs";
-import {music,unlock,toggle,isEnabled} from "./music.mjs";
-import {avatars,colors,lanes,Round,speeds,fruitTypes,fruitRadius} from "./game.mjs";
+import {scenery,puppet,thumbnail} from "./art.mjs?v=fruit-2";
+import {music,unlock,toggle,isEnabled} from "./music.mjs?v=fruit-2";
+import {avatars,colors,lanes,Round,speeds,fruitTypes,fruitRadius} from "./game.mjs?v=fruit-2";
 let speed="Classic";
 try{const saved=localStorage.getItem("fruit-speed");if(Object.prototype.hasOwnProperty.call(speeds,saved))speed=saved;}catch{}
 function selectSpeed(value){
@@ -180,7 +180,7 @@ function draw(){
   el("score").textContent=round.score+" sliced";
   el("progress").textContent="This level · "+round.hits+" sliced / "+round.misses+" missed";
   el("level").textContent="Level "+round.level;
-  el("status").textContent=round.state==="countdown"?(players.every(Boolean)?String(Math.ceil(round.countdown)):"Waiting for players"):round.state==="paused"?"Round paused":round.state==="play" && round.remaining>117?(round.level===1?"Swipe through the fruit!":"Level "+round.level+" · Move left and right!"):"";
+  el("status").textContent=round.state==="countdown"?(players.every(Boolean)?String(Math.ceil(round.countdown)):"Waiting for players"):round.state==="paused"?"Tracking paused · Face the camera and show one hand":round.state==="play" && round.remaining>117?(round.level===1?"Swipe through the fruit!":"Level "+round.level+" · Move left and right!"):"";
 }
 el("clock").before(speedControl());
 el("exit").onclick=home;
