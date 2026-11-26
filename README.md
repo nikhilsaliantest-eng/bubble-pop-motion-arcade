@@ -1,5 +1,5 @@
-# Bubble Pop
-A private-camera browser motion game for one or two people. Open the Pages URL in landscape, choose players and avatars, then tap Start camera. Stand in your assigned lane with shoulders and hands visible and raise one wrist. Reach for falling balloons for 60 seconds. A pop earns a zooming +1; a balloon passing the bottom shows a crying face. Toggle the soft instrumental loop with Music on/off. When players are tracking again in their original lanes, the paused round resumes automatically.
+# Fruit Slice
+A private-camera browser motion game for one or two people. Open the Pages URL in landscape, choose players and avatars, then tap Start camera. Stand in your assigned lane with shoulders and hands visible and raise one wrist. Swipe either hand through falling fruit. Choose Gentle, Classic, or Fast before or during play. Each level lasts two minutes of active play. Slice at least one fruit and finish with as many slices as misses to advance. From level two, fruit rotates through the left, middle and right of each lane in shuffled order. Every level increases the selected speed. A cut shows two separating halves and +1; a missed fruit shows a crying face. Toggle the soft instrumental loop with Music on/off. When players are tracking again in their original lanes, the paused round resumes automatically.
 
 For a seventh-generation iPad, use a Lightning Digital AV Adapter and HDMI cable to mirror the game. Aim the iPad at the players. Try the camera on the iPad before buying any accessories.
 

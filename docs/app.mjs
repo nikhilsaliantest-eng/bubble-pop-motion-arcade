@@ -1,6 +1,19 @@
 import {scenery,puppet,thumbnail} from "./art.mjs";
 import {music,unlock,toggle,isEnabled} from "./music.mjs";
-import {avatars,colors,lanes,Round} from "./game.mjs";
+import {avatars,colors,lanes,Round,speeds,fruitTypes,fruitRadius} from "./game.mjs";
+let speed="Classic";
+try{const saved=localStorage.getItem("fruit-speed");if(Object.prototype.hasOwnProperty.call(speeds,saved))speed=saved;}catch{}
+function selectSpeed(value){
+  speed=value;if(round)round.speed=value;
+  for(const select of document.querySelectorAll(".speed-select"))select.value=value;
+  try{localStorage.setItem("fruit-speed",value);}catch{}
+}
+function speedControl(){
+  const label=document.createElement("label");label.className="speed-control";label.append("Speed ");
+  const select=document.createElement("select");select.className="speed-select";
+  for(const name of Object.keys(speeds))select.add(new Option(name,name));
+  select.value=speed;select.onchange=()=>selectSpeed(select.value);label.append(select);return label;
+}
 const el=id=>document.getElementById(id);
 const menu=el("menu"),arena=el("arena"),canvas=el("board"),ctx=canvas.getContext("2d");
 canvas.width=960; canvas.height=600;
@@ -28,16 +41,17 @@ function panel(title,hint="") {
   const actions=document.createElement("div");actions.className="actions";menu.append(actions);return actions;
 }
 function home(){
-  stop();menu.innerHTML="<h1>Bubble Pop</h1><h2>How many players?</h2><div class='modes'></div>";
+  stop();menu.innerHTML="<h1>Fruit Slice</h1><h2>How many players?</h2><div class='modes'></div>";
+  menu.append(speedControl());
   for(const n of [1,2]){
     const b=button(n+" Player"+(n===2?"s":""),()=>{count=n;choices=Array(n).fill(0);current=0;picker();},"mode");
-    const art=document.createElement("span");art.className="orbs";art.setAttribute("aria-hidden","true");art.innerHTML="<i class='orb'></i>".repeat(n);
+    const art=document.createElement("span");art.className="orbs";art.setAttribute("aria-hidden","true");art.textContent=n===1?"🍎":"🍊 🍉";
     b.prepend(art);menu.querySelector(".modes").append(b);
   }
 }
 function picker(){
   const actions=panel("Choose your avatar",count===2?"Player "+(current+1)+" · "+(current===0?"Left lane":"Right lane"):"Player 1");
-  const hint=document.createElement("p");hint.className="hint";hint.textContent="Choose No avatar to see yourself on screen, or a character to wear its cartoon costume.";
+  const hint=document.createElement("p");hint.className="hint";hint.textContent="Swipe either hand through falling fruit. Slice at least half in two minutes to advance. Choose No avatar to see yourself.";
   const grid=document.createElement("div");grid.className="grid";actions.before(hint,grid);
   avatars.forEach((name,id)=>{
     const b=button(name,()=>{choices[current]=id;[...grid.children].forEach((tile,i)=>tile.setAttribute("aria-pressed",String(id===i)));},"tile");
@@ -67,13 +81,13 @@ async function start(){
     catch{if(token!==epoch)return;options.baseOptions.delegate="CPU";ready=await PoseLandmarker.createFromOptions(files,options);}
     if(token!==epoch){ready.close();return;}
     scenes=choices.map(id=>scenery(id,canvas.width/count,canvas.height));
-    model=ready;round=new Round(count);players=Array(count).fill(null);
+    model=ready;round=new Round(count);round.speed=speed;players=Array(count).fill(null);
     lastFrame=-1;lastPose=0;lastTick=performance.now();rateStart=lastTick;samples=0;el("rate").textContent="";
     menu.hidden=true;arena.hidden=false;raf=requestAnimationFrame(frame);
   }catch(e){if(token===epoch)failure(e.name==="NotAllowedError"?"Camera access was denied. Allow camera access in this site's browser settings, then retry.":"Camera or motion tracking could not start. Check camera availability and retry. "+(e.message||""));}
 }
 function results(){
-  const total=round.score;stop();panel("Round complete!",total+" bubble"+(total===1?"":"s")+" popped").append(button("Play again",start),button("Change avatars",()=>{current=0;picker();},"secondary"),button("Change players",home,"secondary"));
+  const total=round.score;stop();panel("Round complete!",total+" fruit sliced · Level "+round.level+" · "+round.hits+" sliced / "+round.misses+" missed this level").append(button("Play again",start),button("Change avatars",()=>{current=0;picker();},"secondary"),button("Change players",home,"secondary"));
 }
 function frame(now){
   try{
@@ -93,14 +107,10 @@ function frame(now){
     }
     if(now-lastPose>400) players=Array(count).fill(null);
     if(now-rateStart>=1000){el("rate").textContent=Math.round(samples*1000/(now-rateStart))+" tracking updates/s";rateStart=now;samples=0;}
-    round.update(players,dt);music(round.state==="play");
+    round.update(players,dt,lastPose/1000);music(round.state==="play");
     if(round.state==="done"){results();return;}
     draw();raf=requestAnimationFrame(frame);
   }catch(e){failure("Tracking was interrupted. "+(e.message||""));}
-}
-function disk(x,y,r,fill,stroke){
-  ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();
-  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=3;ctx.stroke();}
 }
 // Compose the selected person's mask in camera coordinates, then mirror the result once.
 let matte,portrait,imageData;
@@ -122,12 +132,24 @@ function personImage(mask){
 function cameraLayer(source,W,H){
   ctx.save();ctx.translate(W,0);ctx.scale(-1,1);ctx.drawImage(source,0,0,W,H);ctx.restore();
 }
-function balloon(b,W,H){
-  const x=b.x*W,y=b.y*H;
-  ctx.strokeStyle="#fff4ce";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y+30);ctx.bezierCurveTo(x-9,y+43,x+8,y+50,x-2,y+61);ctx.stroke();
-  ctx.fillStyle="hsl("+b.hue+",74%,47%)";ctx.beginPath();ctx.moveTo(x,y+26);ctx.lineTo(x-5,y+35);ctx.lineTo(x+5,y+35);ctx.fill();
-  const g=ctx.createRadialGradient(x-11,y-14,2,x,y,35);g.addColorStop(0,"hsl("+b.hue+",100%,86%)");g.addColorStop(.7,"hsl("+b.hue+",83%,62%)");g.addColorStop(1,"hsl("+b.hue+",67%,43%)");
-  ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(x,y,27,32,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#fff9";ctx.stroke();disk(x-9,y-13,4,"#fffc");
+function fruitIcon(type,x,y,size){
+  ctx.textAlign="center";ctx.textBaseline="middle";ctx.font=size+"px system-ui";
+  ctx.fillText(fruitTypes[type],x,y);
+}
+function drawFruit(target,W,H){
+  ctx.save();fruitIcon(target.type,target.x*W,target.y*H,2*fruitRadius*H);ctx.restore();
+}
+function splitFruit(e,W,H){
+  const x=e.x*W,y=e.y*H,size=2*fruitRadius*H;
+  const angle=Math.atan2((e.cut.b.y-e.cut.a.y)*H,(e.cut.b.x-e.cut.a.x)*W);
+  for(const side of [-1,1]){
+    ctx.save();ctx.translate(x-Math.sin(angle)*side*e.age*80,y+Math.cos(angle)*side*e.age*80+e.age*e.age*80);
+    ctx.rotate(angle+side*e.age*.7);ctx.beginPath();ctx.rect(-size,side<0?-size:0,size*2,size);ctx.clip();ctx.rotate(-angle);
+    fruitIcon(e.type,0,0,size);ctx.restore();
+  }
+  if(e.age<.18){
+    ctx.strokeStyle="white";ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(e.cut.a.x*W,e.cut.a.y*H);ctx.lineTo(e.cut.b.x*W,e.cut.b.y*H);ctx.stroke();
+  }
 }
 function caption(text,x,y,size=22){
   ctx.textAlign="center";ctx.font="bold "+size+"px system-ui";ctx.lineWidth=5;ctx.strokeStyle="#183b47";ctx.strokeText(text,x,y);ctx.fillStyle="white";ctx.fillText(text,x,y);
@@ -143,7 +165,7 @@ function draw(){
       if(allCamera && video.readyState>=2)cameraLayer(video,W,H);
       else if(p && cutout)cameraLayer(cutout,W,H);
     }else if(p)puppet(ctx,choices[i],p,W,H);
-    if(round.targets[i] && round.state==="play")balloon(round.targets[i],W,H);
+    if(round.targets[i] && round.state==="play")drawFruit(round.targets[i],W,H);
     if(count===2){caption("Player "+(i+1),center,30,19);ctx.fillStyle=colors[i];ctx.fillRect(i*lane,0,lane,4);}
     const prompt=round.state==="calibrate"?(p?(round.holds[i]>=.45?"Ready!":"Raise either hand"):"Step back so your body fits in view"):(!p?"Return to your lane":"");
     if(prompt)caption(prompt,center,H-28,count===2?19:24);
@@ -151,12 +173,16 @@ function draw(){
   }
   for(const e of round.effects){
     ctx.save();ctx.globalAlpha=Math.min(1,(.85-e.age)*4);const size=32+32*Math.sin(Math.min(1,e.age/.32)*Math.PI/2);
+    if(e.kind==="hit")splitFruit(e,W,H);
     caption(e.kind==="hit"?"+1":"😢",e.x*W,Math.max(65,e.y*H-35*e.age),size);ctx.restore();
   }
   el("clock").textContent=Math.floor(Math.ceil(round.remaining)/60)+":"+String(Math.ceil(round.remaining)%60).padStart(2,"0");
-  el("score").textContent=round.score+" pops";
-  el("status").textContent=round.state==="countdown"?(players.every(Boolean)?String(Math.ceil(round.countdown)):"Waiting for players"):round.state==="paused"?"Round paused":"";
+  el("score").textContent=round.score+" sliced";
+  el("progress").textContent="This level · "+round.hits+" sliced / "+round.misses+" missed";
+  el("level").textContent="Level "+round.level;
+  el("status").textContent=round.state==="countdown"?(players.every(Boolean)?String(Math.ceil(round.countdown)):"Waiting for players"):round.state==="paused"?"Round paused":round.state==="play" && round.remaining>117?(round.level===1?"Swipe through the fruit!":"Level "+round.level+" · Move left and right!"):"";
 }
+el("clock").before(speedControl());
 el("exit").onclick=home;
 document.addEventListener("visibilitychange",()=>{if(document.hidden && (stream || !arena.hidden)){failure("Session interrupted. Tap Retry camera when you are ready.");}});
 window.addEventListener("pagehide",home);

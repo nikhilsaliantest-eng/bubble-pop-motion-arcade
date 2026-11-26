@@ -8,10 +8,11 @@ for(const n of [1,2])test(n+" players calibrate, play, pause and finish",()=>{
   const r=new Round(n,()=>.5);
   tick(r,p.map((v,i)=>i===n-1?null:v),90);assert.equal(r.state,"calibrate");
   tick(r,p,75);assert.equal(r.state,"play");
-  p.forEach((v,i)=>v.wrists=[r.targets[i],r.targets[i]]);
+  p.forEach((v,i)=>{r.targets[i].y=.5;v.wrists=[{id:15,x:r.targets[i].x-.08,y:.5}];});
+  r.update(p,.05);p.forEach(v=>{v.wrists=[{...v.wrists[0],x:v.wrists[0].x+.16}];});
   r.update(p,.05);assert.equal(r.score,n);
   const time=r.remaining;tick(r,p.map(()=>null),100);assert.equal(r.remaining,time);
-  tick(r,p,15);assert.equal(r.state,"play");tick(r,p,1250);assert.equal(r.state,"done");
+  tick(r,p,15);assert.equal(r.state,"play");tick(r,p,2450);assert.equal(r.state,"done");
 });
 function points(x){
   const a=[];for(const [i,dx] of [[11,-.05],[12,.05],[15,-.1],[16,.1]])a[i]={x:1-x+dx,y:.5,visibility:.9};return a;
@@ -23,15 +24,27 @@ test("mirrored lanes recover the same slots regardless of detection order",()=>{
   assert.deepEqual(lanes([left,left],2),[null,null]);
   assert.deepEqual(lanes([points(.5)],2),[null,null]);
 });
-test("balloons enter from above, fall, give one point or one miss, then reset",()=>{
-  const r=new Round(1,()=>.5),p=[person(.5)];
-  tick(r,p,75);const b=r.targets[0];assert.ok(b.y<0);
-  r.update(p,.1);assert.equal(r.targets[0],b);assert.ok(b.y>-.06);
-  b.y=.65;p[0].wrists=[{x:b.x,y:.65},{x:b.x,y:.65}];
-  r.update(p,.03);assert.equal(r.score,1);assert.equal(r.effects[0].kind,"hit");assert.ok(r.targets[0].y<0);
-  r.targets[0].y=1.059;r.update(p,.03);
-  assert.equal(r.score,1);assert.equal(r.effects[1].kind,"miss");assert.ok(r.targets[0].y<0);
-  tick(r,p,20);assert.equal(r.effects.length,0);
+test("a fruit passing a stationary wrist misses; switching visible hands cannot slice",()=>{
+  const r=new Round(1,()=>.5),p=[person(.5)];tick(r,p,75);
+  const b=r.targets[0];assert.ok(b.y<0);b.y=.29;
+  p[0].wrists=[{id:15,x:.42,y:.3}];r.update(p,.05);
+  p[0].wrists=[{id:16,x:.58,y:.3}];r.update(p,.05);assert.equal(r.score,0);
+  p[0].wrists=[{id:16,x:.5,y:.6}];r.update(p,.05);tick(r,p,50);
+  assert.equal(r.score,0);assert.equal(r.misses,1);
+});
+test("winning stages last two minutes, carry points and widen both lanes",()=>{
+  const r=new Round(2,()=>.5),p=[person(.25),person(.75)];tick(r,p,75);
+  assert.ok(r.remaining>119);const firstSpeed=r.fallSpeed;
+  r.score=3;r.hits=3;r.misses=3;r.remaining=.05;r.update(p,.05);
+  assert.equal(r.level,2);assert.equal(r.remaining,120);assert.equal(r.score,3);
+  assert.ok(r.fallSpeed>firstSpeed);assert.equal(r.hits,0);assert.equal(r.misses,0);
+  for(let lane=0;lane<2;lane++){
+    const xs=[r.targets[lane],r.target(lane),r.target(lane)].map(t=>Math.floor((t.x*2-lane)*3));
+    assert.deepEqual(xs.sort(),[0,1,2]);
+  }
+  const medium=r.fallSpeed;r.speed="Fast";assert.ok(r.fallSpeed>medium);
+  r.speed="Gentle";assert.ok(r.fallSpeed<medium);
+  r.hits=1;r.misses=2;r.remaining=.05;r.update(p,.05);assert.equal(r.state,"done");
 });
 test("a mixed camera lane retains its source mask index when detections reorder",()=>{
   const p=lanes([points(.75),points(.25)],2);
