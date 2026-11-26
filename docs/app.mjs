@@ -1,3 +1,4 @@
+import {MiniRound} from "./mini.mjs?v=arcade-1";
 import {scenery,puppet,thumbnail} from "./art.mjs?v=fruit-2";
 import {music,unlock,toggle,isEnabled,clap} from "./music.mjs?v=fruit-3";
 import {avatars,colors,lanes,Round,speeds,fruitTypes,fruitRadius} from "./game.mjs?v=fruit-3";
@@ -23,7 +24,7 @@ let scenes=[],cutout=null;
 const musicButton=el('music');
 function musicLabel(){musicButton.textContent=isEnabled()?'Music on':'Music off';musicButton.setAttribute('aria-pressed',String(isEnabled()));}
 musicButton.onclick=()=>{toggle(round?.state==='play');musicLabel();};musicLabel();
-let count=1, choices=[], current=0, epoch=0,stream=null,model=null,raf=0;
+let game="fruit",count=1, choices=[], current=0, epoch=0,stream=null,model=null,raf=0;
 let round,players=[],lastFrame=-1,lastPose=0,lastTick=0,rateStart=0,samples=0;
 function stop() {
   epoch++;cancelAnimationFrame(raf);music(false);cutout=null;
@@ -41,25 +42,29 @@ function panel(title,hint="") {
   const actions=document.createElement("div");actions.className="actions";menu.append(actions);return actions;
 }
 function home(){
-  stop();menu.innerHTML="<h1>Fruit Slice</h1><h2>How many players?</h2><div class='modes'></div>";
-  menu.append(speedControl());
-  for(const n of [1,2]){
-    const b=button(n+" Player"+(n===2?"s":""),()=>{count=n;choices=Array(n).fill(0);current=0;picker();},"mode");
-    const art=document.createElement("span");art.className="orbs";art.setAttribute("aria-hidden","true");art.textContent=n===1?"🍎":"🍊 🍉";
-    b.prepend(art);menu.querySelector(".modes").append(b);
-  }
+ stop();menu.innerHTML="<h1>Motion Arcade</h1><h2>Choose a game</h2><div class='modes'></div>";
+ for(const [id,label,icon] of [["fruit","Fruit Ninja","🍉"],["football","Kick Football","⚽"],["ghost","Punch the Casper Ghost","👻"],["candy","Collect Candies","🍬"]]){
+  const b=button(icon+" "+label,()=>{game=id;if(id==="fruit")playersMenu();else{count=1;choices=[7];current=0;picker();}},"mode");
+  menu.querySelector(".modes").append(b);
+ }
+}
+function playersMenu(){
+ menu.innerHTML="<h2>How many players?</h2><div class='modes'></div>";menu.append(speedControl());
+ for(const n of [1,2])menu.querySelector(".modes").append(button(n+" Player"+(n===2?"s":""),()=>{count=n;choices=Array(n).fill(0);current=0;picker();},"mode"));
+ menu.append(button("Back to games",home,"secondary"));
 }
 function picker(){
   const actions=panel("Choose your avatar",count===2?"Player "+(current+1)+" · "+(current===0?"Left lane":"Right lane"):"Player 1");
   const hint=document.createElement("p");hint.className="hint";hint.textContent="Swipe either hand through falling fruit. Slice at least half in two minutes to advance. Choose No avatar to see yourself.";
   const grid=document.createElement("div");grid.className="grid";actions.before(hint,grid);
   avatars.forEach((name,id)=>{
+    if(game!=="fruit" && id!==0 && id!==7)return;
     const b=button(name,()=>{choices[current]=id;[...grid.children].forEach((tile,i)=>tile.setAttribute("aria-pressed",String(id===i)));},"tile");
     b.setAttribute("aria-pressed",String(choices[current]===id));
     const c=document.createElement("canvas");c.width=c.height=96;c.setAttribute("aria-hidden","true");
     thumbnail(c.getContext('2d'),id);b.prepend(c);grid.append(b);
   });
-  actions.append(button("Back",()=>{if(current){current--;picker();}else home();},"secondary"),
+  actions.append(button("Back",()=>{if(current){current--;picker();}else if(game==="fruit")playersMenu();else home();},"secondary"),
     button(current+1<count?"Choose player 2":"Start camera",()=>{if(current+1<count){current++;picker();}else start();}));
 }
 function failure(message){
@@ -80,14 +85,14 @@ async function start(){
     try{ready=await PoseLandmarker.createFromOptions(files,options);}
     catch{if(token!==epoch)return;options.baseOptions.delegate="CPU";ready=await PoseLandmarker.createFromOptions(files,options);}
     if(token!==epoch){ready.close();return;}
-    scenes=choices.map(id=>scenery(id,canvas.width/count,canvas.height));
-    model=ready;round=new Round(count);round.speed=speed;players=Array(count).fill(null);
+    scenes=choices.map(id=>scenery(game==="ghost"?1:game==="candy"?2:id,canvas.width/count,canvas.height));
+    model=ready;round=game==="fruit"?new Round(count):new MiniRound(game,speed);round.speed=speed;players=Array(count).fill(null);
     lastFrame=-1;lastPose=0;lastTick=performance.now();rateStart=lastTick;samples=0;el("rate").textContent="";
     menu.hidden=true;arena.hidden=false;raf=requestAnimationFrame(frame);
   }catch(e){if(token===epoch)failure(e.name==="NotAllowedError"?"Camera access was denied. Allow camera access in this site's browser settings, then retry.":"Camera or motion tracking could not start. Check camera availability and retry. "+(e.message||""));}
 }
 function results(){
-  const total=round.score;stop();panel("Round complete!",total+" fruit sliced · Level "+round.level+" · "+round.hits+" sliced / "+round.misses+" missed this level").append(button("Play again",start),button("Change avatars",()=>{current=0;picker();},"secondary"),button("Change players",home,"secondary"));
+  const total=round.score;stop();panel("Round complete!",total+" points").append(button("Play again",start),button("Change avatars",()=>{current=0;picker();},"secondary"),button("Change players",home,"secondary"));
 }
 function frame(now){
   try{
@@ -165,6 +170,26 @@ function cutCloud(e,W,H){
   }
   ctx.restore();
 }
+function drawMini(W,H,p){
+ ctx.save();ctx.textAlign="center";ctx.textBaseline="middle";
+ const item=round.targets[0];
+ if(game==="football"){
+  ctx.strokeStyle="#fff";ctx.lineWidth=8;ctx.strokeRect(W*.34,H*.12,W*.32,H*.19);
+  for(let x=.38;x<.66;x+=.06){ctx.beginPath();ctx.moveTo(W*x,H*.12);ctx.lineTo(W*x,H*.31);ctx.stroke();}
+  ctx.font="68px system-ui";ctx.fillText("⚽",round.ball.x*W,round.ball.y*H);
+ }
+ if(game==="ghost"){
+  ctx.fillStyle="#231a36a8";ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#332944";ctx.fillRect(W*.34,H*.08,W*.32,H*.38);
+  for(let x=.34;x<.67;x+=.1){ctx.fillRect(W*x,H*.03,W*.06,H*.07);}
+  if(item){ctx.font=(68+Math.min(item.age,4)*8)+"px system-ui";ctx.fillText("👻",item.x*W,item.y*H);}
+ }
+ if(game==="candy"){
+  if(item){ctx.font="65px system-ui";ctx.fillText(item.icon,item.x*W,item.y*H);}
+  const hand=p?.wrists[0];if(hand){ctx.font="90px system-ui";ctx.fillText("🪣",hand.x*W,(hand.y+.08)*H);}
+ }
+ ctx.restore();
+}
 function caption(text,x,y,size=22){
   ctx.textAlign="center";ctx.font="bold "+size+"px system-ui";ctx.lineWidth=5;ctx.strokeStyle="#183b47";ctx.strokeText(text,x,y);ctx.fillStyle="white";ctx.fillText(text,x,y);
 }
@@ -179,7 +204,10 @@ function draw(){
       if(allCamera && video.readyState>=2)cameraLayer(video,W,H);
       else if(p && cutout)cameraLayer(cutout,W,H);
     }else if(p)puppet(ctx,choices[i],p,W,H);
-    if(round.targets[i] && round.state==="play")drawFruit(round.targets[i],W,H);
+    if(round.state==="play"){
+      if(game==="fruit" && round.targets[i])drawFruit(round.targets[i],W,H);
+      if(game!=="fruit")drawMini(W,H,p);
+    }
     if(count===2){caption("Player "+(i+1),center,30,19);ctx.fillStyle=colors[i];ctx.fillRect(i*lane,0,lane,4);}
     const prompt=round.state==="calibrate"?(p?(round.holds[i]>=.45?"Ready!":"Raise either hand"):"Step back so your body fits in view"):(!p?"Return to your lane":"");
     if(prompt)caption(prompt,center,H-28,count===2?19:24);
@@ -187,14 +215,20 @@ function draw(){
   }
   for(const e of round.effects){
     ctx.save();ctx.globalAlpha=Math.min(1,(.85-e.age)*4);const size=32+32*Math.sin(Math.min(1,e.age/.32)*Math.PI/2);
-    if(e.kind==="hit"){splitFruit(e,W,H);cutCloud(e,W,H);}
+    if(e.kind==="hit"){if(game==="fruit")splitFruit(e,W,H);cutCloud(e,W,H);}
+    if(e.ghost){
+      ctx.save();ctx.translate(e.x*W,e.y*H+(e.kind==="hit"?e.age*H*.65:0));
+      ctx.rotate(e.kind==="hit"?e.age*2:0);
+      ctx.font=(e.kind==="hit"?72:72+e.age*180)+"px system-ui";
+      ctx.textAlign="center";ctx.fillText("👻",0,0);ctx.restore();
+    }
     caption(e.kind==="hit"?"+1":"😢",e.x*W,Math.max(65,e.y*H-35*e.age),size);ctx.restore();
   }
   el("clock").textContent=Math.floor(Math.ceil(round.remaining)/60)+":"+String(Math.ceil(round.remaining)%60).padStart(2,"0");
-  el("score").textContent=round.score+" sliced";
-  el("progress").textContent="This level · "+round.hits+" sliced / "+round.misses+" missed";
+  el("score").textContent=round.score+" points";
+  el("progress").textContent=game==="candy"?"Missed "+round.misses+" / 10":game==="fruit"?"This level · "+round.hits+" sliced / "+round.misses+" missed":"";
   el("level").textContent="Level "+round.level;
-  el("status").textContent=round.state==="countdown"?(players.every(Boolean)?String(Math.ceil(round.countdown)):"Waiting for players"):round.state==="paused"?"Tracking paused · Face the camera and show one hand":round.state==="play" && round.remaining>117?(round.level===1?"Swipe through the fruit!":"Level "+round.level+" · Move left and right!"):"";
+  el("status").textContent=round.state==="countdown"?(players.every(Boolean)?String(Math.ceil(round.countdown)):"Waiting for players"):round.state==="paused"?"Tracking paused · Face the camera and show one hand":round.state==="play" && round.remaining>117?(game==="fruit"?(round.level===1?"Swipe through the fruit!":"Level "+round.level+" · Move left and right!"):game==="football"?"Kick upward toward the goal":game==="ghost"?"Punch the ghosts!":"Move the bucket under candy!"):"";
 }
 el("clock").before(speedControl());
 el("exit").onclick=home;
