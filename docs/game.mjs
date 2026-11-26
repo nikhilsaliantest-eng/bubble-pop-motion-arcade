@@ -17,7 +17,7 @@ export function lanes(raw,count) {
 }
 export const speeds={Gentle:.20,Classic:.32,Fast:.46};
 export const fruitTypes=["🍎","🍊","🍉","🥝","🍑","🍋"];
-export const fruitRadius=.079;
+export const fruitRadius=.108;
 function crosses(a,b,fruit,elapsed){
   const dx=(b.x-a.x)*1.6,dy=b.y-a.y;
   const length=Math.hypot(dx,dy);

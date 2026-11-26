@@ -1,6 +1,6 @@
 import {scenery,puppet,thumbnail} from "./art.mjs?v=fruit-2";
-import {music,unlock,toggle,isEnabled} from "./music.mjs?v=fruit-2";
-import {avatars,colors,lanes,Round,speeds,fruitTypes,fruitRadius} from "./game.mjs?v=fruit-2";
+import {music,unlock,toggle,isEnabled,clap} from "./music.mjs?v=fruit-3";
+import {avatars,colors,lanes,Round,speeds,fruitTypes,fruitRadius} from "./game.mjs?v=fruit-3";
 let speed="Classic";
 try{const saved=localStorage.getItem("fruit-speed");if(Object.prototype.hasOwnProperty.call(speeds,saved))speed=saved;}catch{}
 function selectSpeed(value){
@@ -108,6 +108,9 @@ function frame(now){
     if(now-lastPose>400) players=Array(count).fill(null);
     if(now-rateStart>=1000){el("rate").textContent=Math.round(samples*1000/(now-rateStart))+" tracking updates/s";rateStart=now;samples=0;}
     round.update(players,dt,lastPose/1000);music(round.state==="play");
+    for(const effect of round.effects){
+      if(effect.kind==="hit" && !effect.sounded){clap();effect.sounded=true;}
+    }
     if(round.state==="done"){results();return;}
     draw();raf=requestAnimationFrame(frame);
   }catch(e){failure("Tracking was interrupted. "+(e.message||""));}
@@ -151,6 +154,17 @@ function splitFruit(e,W,H){
     ctx.strokeStyle="white";ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(e.cut.a.x*W,e.cut.a.y*H);ctx.lineTo(e.cut.b.x*W,e.cut.b.y*H);ctx.stroke();
   }
 }
+function cutCloud(e,W,H){
+  const x=e.x*W,y=e.y*H,spread=e.age*115;
+  ctx.save();ctx.globalAlpha=Math.max(0,1-e.age/.65);
+  for(let i=0;i<9;i++){
+    const angle=i*Math.PI*2/9;
+    const px=x+Math.cos(angle)*spread,py=y+Math.sin(angle)*spread;
+    ctx.beginPath();ctx.arc(px,py,Math.max(2,11-e.age*11),0,Math.PI*2);
+    ctx.fillStyle=i%2?"#fff6d0":"#ffffff";ctx.fill();
+  }
+  ctx.restore();
+}
 function caption(text,x,y,size=22){
   ctx.textAlign="center";ctx.font="bold "+size+"px system-ui";ctx.lineWidth=5;ctx.strokeStyle="#183b47";ctx.strokeText(text,x,y);ctx.fillStyle="white";ctx.fillText(text,x,y);
 }
@@ -173,7 +187,7 @@ function draw(){
   }
   for(const e of round.effects){
     ctx.save();ctx.globalAlpha=Math.min(1,(.85-e.age)*4);const size=32+32*Math.sin(Math.min(1,e.age/.32)*Math.PI/2);
-    if(e.kind==="hit")splitFruit(e,W,H);
+    if(e.kind==="hit"){splitFruit(e,W,H);cutCloud(e,W,H);}
     caption(e.kind==="hit"?"+1":"😢",e.x*W,Math.max(65,e.y*H-35*e.age),size);ctx.restore();
   }
   el("clock").textContent=Math.floor(Math.ceil(round.remaining)/60)+":"+String(Math.ceil(round.remaining)%60).padStart(2,"0");

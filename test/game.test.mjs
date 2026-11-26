@@ -29,7 +29,7 @@ test("a fruit passing a stationary wrist misses; switching visible hands cannot 
   const b=r.targets[0];assert.ok(b.y<0);b.y=.29;
   p[0].wrists=[{id:15,x:.42,y:.3}];r.update(p,.05);
   p[0].wrists=[{id:16,x:.58,y:.3}];r.update(p,.05);assert.equal(r.score,0);
-  p[0].wrists=[{id:16,x:.5,y:.6}];r.update(p,.05);tick(r,p,50);
+  p[0].wrists=[{id:16,x:.75,y:.6}];r.update(p,.05);tick(r,p,50);
   assert.equal(r.score,0);assert.equal(r.misses,1);
 });
 test("winning stages last two minutes, carry points and widen both lanes",()=>{

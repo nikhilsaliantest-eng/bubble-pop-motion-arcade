@@ -3,11 +3,20 @@ let enabled=true;
 try{enabled=localStorage.getItem("bubble-music")!=="off";}catch{}
 const melody=[72,0,76,79,0,76,74,0,71,0,74,77,0,74,72,0,69,0,72,76,0,72,71,0,67,0,71,74,0,71,0,0];
 export function unlock(){
-  if(!enabled)return;
   try{
     if(!audio){const Audio=window.AudioContext||window.webkitAudioContext;audio=new Audio();master=audio.createGain();master.gain.value=.22;master.connect(audio.destination);}
     audio.resume().catch(()=>{});
   }catch{}
+}
+export function clap(){
+  if(!audio || audio.state!=="running")return;
+  const duration=.18,buffer=audio.createBuffer(1,Math.ceil(audio.sampleRate*duration),audio.sampleRate);
+  const samples=buffer.getChannelData(0);
+  for(let i=0;i<samples.length;i++)samples[i]=(Math.random()*2-1)*Math.exp(-i/(audio.sampleRate*.035));
+  const source=audio.createBufferSource(),filter=audio.createBiquadFilter(),gain=audio.createGain();
+  source.buffer=buffer;filter.type="highpass";filter.frequency.value=900;
+  gain.gain.value=.35;source.connect(filter);filter.connect(gain);gain.connect(audio.destination);
+  source.start();source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();};
 }
 function note(midi,time,volume,duration,type){
   const voice=audio.createOscillator(), envelope=audio.createGain();
