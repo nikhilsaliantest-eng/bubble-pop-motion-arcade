@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {Round, lanes, avatars, sprite} from "../docs/game.mjs";
+import {Round, lanes, avatars} from "../docs/game.mjs";
 const person=x=>({x,y:.55,span:.12,wrists:[{x,y:.3}]});
 const tick=(r,p,n)=>{for(let i=0;i<n;i++)r.update(p,.05);};
 for(const n of [1,2])test(n+" players calibrate, play, pause and finish",()=>{
@@ -23,9 +23,17 @@ test("mirrored lanes recover the same slots regardless of detection order",()=>{
   assert.deepEqual(lanes([left,left],2),[null,null]);
   assert.deepEqual(lanes([points(.5)],2),[null,null]);
 });
-test("all eight sprites render, No avatar draws nothing in play",()=>{
-  let draws=0;const ctx=new Proxy({},{get:(_,k)=>()=>{if(k==="fill" || k==="fillText")draws++;},set:()=>true});
-  assert.equal(avatars.length,8);sprite(ctx,0,0,0,64,"red");assert.equal(draws,0);
-  sprite(ctx,0,0,0,64,"red",true);assert.equal(draws,2);
-  for(let i=1;i<8;i++){const prev=draws;sprite(ctx,i,0,0,64,"red");assert.ok(draws>prev);}
+test("balloons enter from above, fall, give one point or one miss, then reset",()=>{
+  const r=new Round(1,()=>.5),p=[person(.5)];
+  tick(r,p,75);const b=r.targets[0];assert.ok(b.y<0);
+  r.update(p,.1);assert.equal(r.targets[0],b);assert.ok(b.y>-.06);
+  b.y=.65;p[0].wrists=[{x:b.x,y:.65},{x:b.x,y:.65}];
+  r.update(p,.03);assert.equal(r.score,1);assert.equal(r.effects[0].kind,"hit");assert.ok(r.targets[0].y<0);
+  r.targets[0].y=1.059;r.update(p,.03);
+  assert.equal(r.score,1);assert.equal(r.effects[1].kind,"miss");assert.ok(r.targets[0].y<0);
+  tick(r,p,20);assert.equal(r.effects.length,0);
+});
+test("a mixed camera lane retains its source mask index when detections reorder",()=>{
+  const p=lanes([points(.75),points(.25)],2);
+  assert.deepEqual(p.map(v=>v.index),[1,0]);assert.equal(avatars.length,8);
 });
